@@ -1,0 +1,140 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Default vars */
+:root {
+  --color-bg: #0b0f1a !important;
+  --color-surface: #0f1724;
+  --color-primary: #7c3aed;
+  --color-accent: #06b6d4;
+  --color-text: #e6eef8;
+  --color-muted: #9aa6b2;
+  --shadow: rgba(124,58,237,0.12);
+}
+
+/* Theme-specific vars with !important for bg */
+[data-theme="forestNight"] {
+  --color-bg: #071014 !important;
+  --color-surface: #0b1b1b;
+  --color-primary: #10b981;
+  --color-accent: #3b82f6;
+  --color-text: #d9f6ef;
+  --color-muted: #7aa79a;
+  --shadow: rgba(16,185,129,0.06);
+}
+
+[data-theme="studioDashboard"] {
+  --color-bg: #0f1724 !important;
+  --color-surface: #111827;
+  --color-primary: #3b82f6;
+  --color-accent: #06b6d4;
+  --color-text: #e6eef8;
+  --color-muted: #9aa6b2;
+  --shadow: rgba(59,130,246,0.08);
+}
+
+[data-theme="darkCyber"] {
+  --color-bg: #04050a !important;
+  --color-surface: #0b1220;
+  --color-primary: #7c3aed;
+  --color-accent: #06b6d4;
+  --color-text: #e6eef8;
+  --color-muted: #94a3b8;
+  --shadow: rgba(124,58,237,0.12);
+}
+
+[data-theme="softManga"] {
+  --color-bg: #f6f7fb !important;
+  --color-surface: #ffffff;
+  --color-primary: #111827;
+  --color-accent: #ef4444;
+  --color-text: #0f1724;
+  --color-muted: #64748b;
+  --shadow: rgba(16,24,40,0.06);
+}
+
+[data-theme="sakuraDream"] {
+  --color-bg: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 50%, #f3e8ff 100%) !important;
+  --color-surface: #fef7ff;
+  --color-primary: #be185d;
+  --color-accent: #f472b6;
+  --color-text: #581c87;
+  --color-muted: #a855f7;
+  --shadow: rgba(236,72,153,0.15);
+}
+
+/* Theme-aware body/app-root */
+body, .app-root {
+  background: var(--color-bg) !important;
+  color: var(--color-text);
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+}
+
+/* Navbar theme-aware */
+.bg-var-surface {
+  background-color: var(--color-surface) !important;
+}
+
+.border-var-muted {
+  border-color: var(--color-muted) !important;
+}
+
+/* Theme-aware inputs/selects/boxes */
+input, select, textarea {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-muted);
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* Light theme overrides (dark text/light bg) */
+[data-theme="softManga"] input, [data-theme="softManga"] select, [data-theme="softManga"] textarea,
+[data-theme="sakuraDream"] input, [data-theme="sakuraDream"] select, [data-theme="sakuraDream"] textarea {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-muted);
+}
+
+/* Dark theme overrides (light text/dark bg) */
+[data-theme="forestNight"] input, [data-theme="forestNight"] select, [data-theme="forestNight"] textarea,
+[data-theme="studioDashboard"] input, [data-theme="studioDashboard"] select, [data-theme="studioDashboard"] textarea,
+[data-theme="darkCyber"] input, [data-theme="darkCyber"] select, [data-theme="darkCyber"] textarea {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-muted);
+}
+
+.card {
+  background: var(--color-surface);
+  box-shadow: 0 6px 20px var(--shadow);
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.03);
+}
+
+.input-ghost:focus {
+  outline: none;
+  box-shadow: 0 6px 20px var(--shadow);
+  border-color: var(--color-accent);
+}
+
+.manga-cover {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.02);
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

@@ -1,0 +1,21 @@
+# nginx.conf.template (rename your existing nginx.conf to this and update as below)
+server {
+
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Serve index.html for SPA routes
+    location / {
+        try_files $uri /index.html;
+    }
+
+    # JS env injector: exposes API_HOST as a JS variable (dynamic via envsubst)
+    location /env.js {
+        default_type "application/javascript";
+        add_header Cache-Control "no-cache";
+        return 200 'window.__ENV__ = { API_HOST: "${API_HOST}" };';
+    }
+}
