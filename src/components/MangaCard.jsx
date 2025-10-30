@@ -19,7 +19,8 @@ const MangaCard = ({
   const [showModal, setShowModal] = useState(false);
   const [coverUrl, setCoverUrl] = useState('');
   const [isCoverLoading, setIsCoverLoading] = useState(true);
-  const [downloadedChapters, setDownloadedChapters] = useState(0); // For watchlist
+  const [downloadedChapters, setDownloadedChapters] = useState(0);
+  const [totalChapters, setTotalChapters] = useState(0);
 
   // Status map for display and colors
   const statusMap = {
@@ -31,7 +32,6 @@ const MangaCard = ({
   };
 
   const statusInfo = statusMap[manga.releaseStatus] || { text: 'Unknown', color: 'bg-gray-500' };
-  const totalChapters = manga.chapterIds?.length || 0;
 
   // Connector badge info
   const primaryConnector = manga.mangaConnectorIds?.find(c => c.useForDownload) || manga.mangaConnectorIds?.[0];
@@ -56,11 +56,16 @@ const MangaCard = ({
   const fetchChapters = async () => {
     if (mode !== 'watchlist' || !manga?.key) return;
     try {
-      const chapters = await useApi(`/v2/Manga/${manga.key}/Chapters`);
-      const downloaded = chapters.filter(ch => ch.downloaded).length;
-      setDownloadedChapters(downloaded);
+      const [allChaptersRes, downloadedRes] = await Promise.all([
+        useApi(`/v2/Manga/${manga.key}/Chapters`),
+        useApi(`/v2/Manga/${manga.key}/Chapters/Downloaded`)
+      ]);
+      setTotalChapters(allChaptersRes.length || 0);
+      setDownloadedChapters(downloadedRes.length || 0);
     } catch (err) {
       console.error('Chapters fetch error in card:', err);
+      setTotalChapters(0);
+      setDownloadedChapters(0);
     }
   };
 
@@ -156,16 +161,16 @@ const MangaCard = ({
   };
 
   if (isLoading) {
-    return <div className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded-lg h-96"></div>; // Taller skeleton
+    return <div className="animate-pulse bg-var-surface rounded-lg h-96"></div>; // Taller skeleton
   }
 
   return (
     <>
       <div 
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer relative" 
+        className="bg-var-surface rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer relative flex flex-col" 
         onClick={handleCardClick}
       >
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           <img
             src={coverUrl || '/placeholder.jpg'}
             alt={`${manga.name} cover`}
@@ -186,60 +191,74 @@ const MangaCard = ({
             title={`Status: ${statusInfo.text}`}
           ></div>
         </div>
-        <div className="p-4">
-          <h3 className="font-bold text-lg line-clamp-2 dark:text-white mb-2">{manga.name}</h3> {/* Two lines max */}
-          {/* Chapters display per mode */}
-          {mode === 'watchlist' && totalChapters > 0 && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Chapters: {downloadedChapters}/{totalChapters}</p>
-          )}
-          {mode === 'search' && totalChapters > 0 && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Chapters: {totalChapters} available</p>
-          )}
-          {/* Mode-specific bottom content */}
-          {mode === 'search' && (
-            <div className="flex justify-between items-center mb-2">
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Library: 
-                <select
-                  value={selectedLibrary}
-                  onChange={(e) => setSelectedLibrary(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="ml-1 p-1 border rounded text-xs bg-white dark:bg-gray-700"
+        <div className="p-4 flex-1 flex flex-col">
+          <div className="title-section" style={{ height: '3em', overflow: 'hidden', display: 'flex', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+            <h3 
+              className="font-bold text-lg text-var-text line-clamp-2" 
+              style={{
+                lineHeight: '1.5em',
+                marginBottom: 0
+              }}
+            >
+              {manga.name}
+            </h3>
+          </div>
+          <div className="flex-1 flex flex-col justify-end">
+            {/* Chapters display per mode, tied to bottom */}
+            {(mode === 'watchlist' || mode === 'search') && totalChapters > 0 && (
+              <p className="text-sm text-var-muted mb-2">
+                {mode === 'watchlist' 
+                  ? `Chapters: ${downloadedChapters}/${totalChapters}` 
+                  : `Chapters: ${totalChapters} available`
+                }
+              </p>
+            )}
+            {/* Mode-specific bottom content */}
+            {mode === 'search' && (
+              <div className="flex justify-between items-center">
+                <div className="text-sm text-var-muted">
+                  Library: 
+                  <select
+                    value={selectedLibrary}
+                    onChange={(e) => setSelectedLibrary(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="ml-1 p-1 border rounded text-xs bg-var-surface dark:bg-gray-700"
+                  >
+                    {libraries.map(lib => (
+                      <option key={lib.key} value={lib.key}>{lib.libraryName}</option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleAddClick(); }}
+                  className="p-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
+                  title="Add to Watchlist"
                 >
-                  {libraries.map(lib => (
-                    <option key={lib.key} value={lib.key}>{lib.libraryName}</option>
-                  ))}
-                </select>
+                  <Download size={16} />
+                </button>
               </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); handleAddClick(); }}
-                className="p-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"
-                title="Add to Watchlist"
-              >
-                <Download size={16} />
-              </button>
-            </div>
-          )}
-          {mode === 'watchlist' && (
-            <div className="flex justify-between items-center">
-              <a
-                href={websiteUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-primary text-white hover:bg-primary/90"
-                title={`Open on ${connectorName}`}
-              >
-                {connectorName} <ExternalLink size={12} className="ml-1" />
-              </a>
-              <button
-                onClick={(e) => { e.stopPropagation(); handleRemoveClick(); }}
-                className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                title="Remove from Watchlist"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          )}
+            )}
+            {mode === 'watchlist' && (
+              <div className="flex justify-between items-center">
+                <a
+                  href={websiteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-primary text-white hover:bg-primary/90"
+                  title={`Open on ${connectorName}`}
+                >
+                  {connectorName} <ExternalLink size={12} className="ml-1" />
+                </a>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleRemoveClick(); }}
+                  className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                  title="Remove from Watchlist"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

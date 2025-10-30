@@ -18,6 +18,7 @@ export default function Search() {
   const [filters, setFilters] = useState({ status: '', year: '' });
   const [localFilteredResults, setLocalFilteredResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [libraries, setLibraries] = useState([]);
   const [selectedLibrary, setSelectedLibrary] = useState(''); // Note: lowercase 'l' for consistency
 
@@ -61,12 +62,14 @@ export default function Search() {
   };
 
   const handleSearch = async () => {
+    if (!query?.trim()) return;
     console.log('Handle search:', query, selectedConnector);
-    setIsSearching(true);
-    setLoading(true);
     setError(null);
+    setHasSearched(true);
+    setLoading(true);
+    setIsSearching(true);
     try {
-      if (query && (query.startsWith('http://') || query.startsWith('https://'))) {
+      if (query.startsWith('http://') || query.startsWith('https://')) {
         // URL search: POST /v2/Search/Url with body as plain JSON string (URL)
         const response = await useApi('/v2/Search/Url', 'POST', query); // Send string directly
         console.log('Full URL response:', response); // Debug full response
@@ -79,8 +82,8 @@ export default function Search() {
         console.log('Set results to:', mangaData); // Debug after set
         showToast('URL search completed', 'success');
       } else {
-        // Regular search: Use contextSearch for connector/query
-        contextSearch(query, selectedConnector, setLoading, setIsSearching, setError);
+        // Regular search: Use contextSearch for connector/query, pass dummy setters for loading/isSearching
+        await contextSearch(query, selectedConnector, () => {}, () => {}, setError);
       }
     } catch (err) {
       console.error('Search error:', err);
@@ -88,7 +91,7 @@ export default function Search() {
       showToast(`Search failed: ${err.message || 'Unknown error'}`, 'error');
     } finally {
       setLoading(false);
-      setIsSearching(false); // Ensure spinner stops
+      setIsSearching(false);
     }
   };
 
@@ -133,6 +136,7 @@ export default function Search() {
           type="text"
           value={query || ''}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
           placeholder="Search manga..."
           className="flex-1 py-2.5 px-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-all h-10 appearance-none"
         />
@@ -165,44 +169,45 @@ export default function Search() {
         </button>
       </div>
 
-      {isSearching && (
-        <div className="flex justify-center py-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          <span className="ml-2 text-gray-600 dark:text-gray-400">Searching...</span>
+      {(loading || isSearching) && (
+        <div className="flex flex-col items-center py-4 gap-2">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          <span className="text-gray-600 dark:text-gray-400">Searching...</span>
         </div>
       )}
 
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-64 w-full" />
-          ))}
-        </div>
-      ) : error ? (
+      {error && (
         <div className="text-center py-8">
           <p className="text-lg text-red-500 dark:text-red-400">Error: {error}</p>
         </div>
-      ) : localFilteredResults.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-lg text-gray-500 dark:text-gray-400">No manga found. Try searching!</p>
-        </div>
-      ) : (
-        <div {...handlers} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {(localFilteredResults || []).map((mangaItem, index) => (
-            <MangaCard 
-              key={mangaItem.key || mangaItem.providerId || index} 
-              manga={mangaItem} 
-              isLoading={loading} 
-              onAdd={onAdd} 
-              mode="search"
-              libraries={libraries}
-              connectors={connectors}
-              selectedLibrary={selectedLibrary}
-              setSelectedLibrary={setSelectedLibrary}
-              selectedConnector={selectedConnector}
-            />
-          ))}
-        </div>
+      )}
+
+      {!(loading || isSearching) && (
+        !hasSearched ? (
+          <div className="text-center py-8">
+            <p className="text-lg text-gray-500 dark:text-gray-400">Try searching!</p>
+          </div>
+        ) : localFilteredResults.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-lg text-gray-500 dark:text-gray-400">No manga found.</p>
+          </div>
+        ) : (
+          <div {...handlers} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {(localFilteredResults || []).map((mangaItem, index) => (
+              <MangaCard 
+                key={mangaItem.key || mangaItem.providerId || index} 
+                manga={mangaItem} 
+                onAdd={onAdd} 
+                mode="search"
+                libraries={libraries}
+                connectors={connectors}
+                selectedLibrary={selectedLibrary}
+                setSelectedLibrary={setSelectedLibrary}
+                selectedConnector={selectedConnector}
+              />
+            ))}
+          </div>
+        )
       )}
       <div>
         {toast.message && <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: '' })} />}

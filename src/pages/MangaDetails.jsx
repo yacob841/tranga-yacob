@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ExternalLink, Download, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import useApi, { getCoverAsBlob } from '../api/client';
 import { useData } from '../context/DataContext'; // For libraries
@@ -7,6 +7,7 @@ import { useData } from '../context/DataContext'; // For libraries
 export default function MangaDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { libraries } = useData(); // Fetch libraries from context
   const [manga, setManga] = useState(null);
   const [chapters, setChapters] = useState([]);
@@ -137,6 +138,20 @@ export default function MangaDetails() {
     }
   }, [selectedLib, manga]);
 
+  // Auto-scroll to chapter if param present
+  useEffect(() => {
+    if (chapters.length > 0) {
+      const scrollToChapter = searchParams.get('scrollToChapter');
+      if (scrollToChapter) {
+        const chapterNumber = parseFloat(scrollToChapter);
+        const targetRow = document.getElementById(`chapter-row-${chapterNumber}`);
+        if (targetRow) {
+          targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    }
+  }, [chapters, searchParams]);
+
   if (loading) return <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div></div>;
   if (error) return <div className="text-center py-8 text-red-500">Error: {error}</div>;
   if (!manga) return <div className="text-center py-8">Manga not found</div>;
@@ -154,10 +169,10 @@ export default function MangaDetails() {
         <button
           onClick={handleForceMangaRecheck}
           disabled={recheckLoading}
-          className="bg-orange-500 text-white px-4 py-2 rounded-md hover:bg-orange-600 disabled:opacity-50 transition-colors flex items-center"
+          className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 disabled:opacity-50 transition-colors flex items-center"
         >
           <RefreshCw size={16} className={`mr-2 ${recheckLoading ? 'animate-spin' : ''}`} />
-          {recheckLoading ? 'Rechecking...' : 'Force Manga Re-check'}
+          {recheckLoading ? 'Rechecking...' : 'Re-check'}
         </button>
       </div>
       <div className="flex flex-col lg:flex-row gap-8">
@@ -218,7 +233,7 @@ export default function MangaDetails() {
               <h3 className="font-medium mb-2">Tags</h3>
               <div className="flex flex-wrap gap-2">
                 {manga.tags.map((tag, i) => (
-                  <span key={i} className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-sm">{tag}</span>
+                  <span key={i} className="px-2 py-1 bg-var-surface dark:bg-gray-700 rounded text-sm border border-var-muted">{tag}</span>
                 ))}
               </div>
             </div>
@@ -232,7 +247,7 @@ export default function MangaDetails() {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse border border-gray-300 dark:border-gray-600">
             <thead>
-              <tr className="bg-gray-100 dark:bg-gray-700">
+              <tr className="bg-var-surface">
                 <th className="border border-gray-300 dark:border-gray-600 p-2 text-left">Chapter</th>
                 <th className="border border-gray-300 dark:border-gray-600 p-2 text-left">Title</th>
                 <th className="border border-gray-300 dark:border-gray-600 p-2 text-center">Downloaded</th>
@@ -247,7 +262,11 @@ export default function MangaDetails() {
                 const sourceName = chapterConnector?.mangaConnectorName || 'N/A';
                 const chapterUrl = chapterConnector?.websiteUrl || '';
                 return (
-                  <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <tr 
+                    key={i} 
+                    id={`chapter-row-${chapter.chapterNumber}`}
+                    className="hover:bg-var-surface/80"
+                  >
                     <td className="border border-gray-300 dark:border-gray-600 p-2">Ch. {chapter.chapterNumber}</td>
                     <td className="border border-gray-300 dark:border-gray-600 p-2">{chapter.title || 'Untitled'}</td>
                     <td className="border border-gray-300 dark:border-gray-600 p-2 text-center">
@@ -265,7 +284,7 @@ export default function MangaDetails() {
                       <button
                         onClick={() => handleForceChapterRecheck(chapter.key)}
                         disabled={recheckLoading}
-                        className="bg-yellow-500 text-white px-2 py-1 rounded text-xs hover:bg-yellow-600 disabled:opacity-50 transition-colors"
+                        className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 disabled:opacity-50 transition-colors"
                         title="Force Re-check Chapter"
                       >
                         <RefreshCw size={12} className={`${recheckLoading ? 'animate-spin' : ''}`} />

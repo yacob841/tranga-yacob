@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSwipeable } from 'react-swipeable';
 import { useSearchContext } from '../context/SearchContext';
+import { Filter, ChevronDown, ChevronUp, ArrowUp, ArrowDown } from 'lucide-react';
 import MangaCard from '../components/MangaCard';
 import QuickActions from '../components/QuickActions';
 import Toast from '../components/Toast';
@@ -15,20 +16,27 @@ export default function Watchlist() {
   const [toast, setToast] = useState({ message: '', type: '' });
   const [selected, setSelected] = useState([]);
   const [libraries, setLibraries] = useState(cachedLibs); // Fallback to cached
-  const [selectedLibrary, setSelectedLibrary] = useState('all'); // 'all', 'unassigned', or key
   const [connectors, setConnectors] = useState(cachedConns); // Fallback to cached
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Filter states - Default to 'last-chap' desc for flipped order
+  const [filters, setFilters] = useState({
+    connector: '',
+    status: '',
+    sortBy: 'title',
+    sortDirection: 'asc',
+  });
 
   // Update local from cached on change
   useEffect(() => {
-    setLibraries(cachedLibs);
-    if (cachedLibs.length > 0 && selectedLibrary === '') setSelectedLibrary(cachedLibs[0].key);
+    setLibraries(cachedLibs || []);
   }, [cachedLibs]);
 
   useEffect(() => {
-    setConnectors(cachedConns);
+    setConnectors(cachedConns || []);
   }, [cachedConns]);
 
-  // Initial library load on mount (/v2/Manga/Downloading, all results) - refresh on selectedLibrary change
+  // Initial load on mount (/v2/Manga/Downloading, all results)
   useEffect(() => {
     console.log('Library mount effect');
     const loadLibrary = async () => {
@@ -36,8 +44,25 @@ export default function Watchlist() {
         const client = apiClient();
         const response = await client.get('/v2/Manga/Downloading');
         const data = response.data || [];
+
+        // Enrich with lastDownloadedChapter
+        const enrichedManga = await Promise.all(
+          data.map(async (m) => {
+            try {
+              const downloadedChapters = await useApi(`/v2/Manga/${m.key}/Chapters/Downloaded`);
+              const lastDownloaded = downloadedChapters?.length > 0 
+                ? Math.max(...downloadedChapters.map(ch => ch.chapterNumber || 0))
+                : 0;
+              return { ...m, lastDownloadedChapter: lastDownloaded };
+            } catch (err) {
+              console.error(`Error fetching chapters for ${m.key}:`, err);
+              return { ...m, lastDownloadedChapter: 0 };
+            }
+          })
+        );
+
         if (setWatchlistResults) {
-          setWatchlistResults(data);
+          setWatchlistResults(enrichedManga);
         }
       } catch (err) {
         console.error('Library load error:', err);
@@ -47,15 +72,46 @@ export default function Watchlist() {
       }
     };
     loadLibrary();
-  }, [setWatchlistResults, selectedLibrary]); // Add selectedLibrary dep for refresh
+  }, [setWatchlistResults]);
 
-  // Issue 7: Filter logic
-  const filteredWatchlist = (watchlistResults || []).filter((manga) => {
-    const libId = manga.fileLibraryId?.key;
-    if (selectedLibrary === 'all') return true;
-    if (selectedLibrary === 'unassigned') return !libId;
-    return libId === selectedLibrary;
-  });
+  // Comprehensive filter logic with useMemo
+  const filteredWatchlist = useMemo(() => {
+    let filtered = [...(watchlistResults || [])];
+
+    // Connector filter (exclude Global)
+    if (filters.connector) {
+      filtered = filtered.filter(m => {
+        const primary = m.mangaConnectorIds?.find(c => c.useForDownload) || m.mangaConnectorIds?.[0];
+        return primary?.mangaConnectorName === filters.connector;
+      });
+    }
+
+    // Status filter
+    if (filters.status !== '') {
+      filtered = filtered.filter(m => m.releaseStatus === parseInt(filters.status));
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      let valA, valB;
+      if (filters.sortBy === 'title') {
+        valA = a.name || '';
+        valB = b.name || '';
+        return filters.sortDirection === 'asc' 
+          ? valA.localeCompare(valB) 
+          : valB.localeCompare(valA);
+      } else if (filters.sortBy === 'last-chap') {
+        valB = a.lastDownloadedChapter || 0;
+        valA = b.lastDownloadedChapter || 0;
+        return filters.sortDirection === 'asc' 
+          ? valA - valB 
+          : valB - valA;
+      }
+      return 0;
+    });
+
+    return filtered;
+  }, [watchlistResults, filters]);
 
   const showToast = (msg, type) => {
     setToast({ message: msg, type });
@@ -81,6 +137,31 @@ export default function Watchlist() {
     }
   };
 
+  const updateFilter = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const toggleSortDirection = () => {
+    setFilters(prev => ({
+      ...prev,
+      sortDirection: prev.sortDirection === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const statusOptions = [
+    { value: '', label: 'All Status' },
+    { value: '0', label: 'Continuing' },
+    { value: '1', label: 'Completed' },
+    { value: '2', label: 'Hiatus' },
+    { value: '3', label: 'Cancelled' },
+    { value: '4', label: 'Unreleased' }
+  ];
+
+  const sortFieldOptions = [
+    { value: 'title', label: 'Alphabetical' },
+    { value: 'last-chap', label: 'Latest Download' }
+  ];
+
   const handlers = useSwipeable({
     onSwipedLeft: () => console.log('Swipe left'),
     onSwipedRight: () => console.log('Swipe right'),
@@ -96,35 +177,95 @@ export default function Watchlist() {
 
   return (
     <div className="container mx-auto p-4 space-y-6">
-      {/* Library Dropdown with filter options (updated styles) */}
-      <select 
-        value={selectedLibrary} 
-        onChange={(e) => setSelectedLibrary(e.target.value)}
-        className="py-2.5 px-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-all h-10 appearance-none bg-no-repeat bg-right pr-8 text-center bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOCIgdmlld0JveD0iMCAwIDEyIDgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xIDEgTDYgNiBMMTExIDEiIHN0cm9rZT0iY3VycmVudENvbG9yIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4=')]"
-        aria-label="Select library"
-      >
-        <option value="all">All Libraries</option>
-        <option value="unassigned">Unassigned</option>
-        {libraries.map(lib => (
-          <option key={lib.key} value={lib.key}>{lib.libraryName}</option>
-        ))}
-      </select>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Watchlist ({filteredWatchlist.length})</h1>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors flex items-center"
+        >
+          <Filter size={16} className="mr-2" />
+          Filters
+          {showFilters ? <ChevronUp size={16} className="ml-2" /> : <ChevronDown size={16} className="ml-2" />}
+        </button>
+      </div>
+
+      {showFilters && (
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border shadow-md space-y-4 mb-6" style={{ minHeight: '200px' }}>
+          {/* Connector Filter - Exclude Global */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Connector</label>
+            <select
+              value={filters.connector}
+              onChange={(e) => updateFilter('connector', e.target.value)}
+              className="w-full p-2 border rounded-md dark:bg-gray-700"
+            >
+              <option value="">All Connectors</option>
+              {connectors.filter(c => c.enabled && c.name !== 'Global').map(c => (
+                <option key={c.key} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status Filter */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Status</label>
+            <select
+              value={filters.status}
+              onChange={(e) => updateFilter('status', e.target.value)}
+              className="w-full p-2 border rounded-md dark:bg-gray-700"
+            >
+              {statusOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Sort Filter */}
+          <div className="flex gap-4 items-end">
+            <div className="flex-1">
+              <label className="block text-sm font-medium mb-2">Sort By</label>
+              <select
+                value={filters.sortBy}
+                onChange={(e) => updateFilter('sortBy', e.target.value)}
+                className="w-full p-2 border rounded-md dark:bg-gray-700"
+              >
+                {sortFieldOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={toggleSortDirection}
+              className="p-2 border rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center"
+              title="Toggle Sort Direction"
+            >
+              {filters.sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
+            </button>
+          </div>
+        </div>
+      )}
 
       {selected.length > 0 && <QuickActions selected={selected} onBulkDownload={bulkDownload} />}
-      <div {...handlers} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredWatchlist.map(mangaItem => (
-          <MangaCard 
-            key={mangaItem.providerId || mangaItem.key || Math.random()} 
-            manga={mangaItem} 
-            checkbox={true}
-            onSelect={handleSelect}
-            mode="watchlist"
-            libraries={libraries}
-            connectors={connectors}
-            selectedLibrary={selectedLibrary}
-            setSelectedLibrary={setSelectedLibrary}
-          />
-        ))}
+      <div {...handlers} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-[600px]">
+        {filteredWatchlist.length === 0 ? (
+          <div className="col-span-full text-center py-12">
+            <p className="text-lg text-gray-500 dark:text-gray-400">No manga found matching the filters.</p>
+          </div>
+        ) : (
+          filteredWatchlist.map(mangaItem => (
+            <MangaCard 
+              key={mangaItem.providerId || mangaItem.key || Math.random()} 
+              manga={mangaItem} 
+              checkbox={true}
+              onSelect={handleSelect}
+              mode="watchlist"
+              libraries={libraries}
+              connectors={connectors}
+              selectedLibrary={filters.library}
+              setSelectedLibrary={() => {}} // No-op since integrated
+            />
+          ))
+        )}
       </div>
       <div>
         {toast.message && <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: '' })} />}
