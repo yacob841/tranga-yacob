@@ -1,5 +1,5 @@
 # News
-Due to an API update, almost all functionality doesn't work anymore. I will start working on making the changes but not sure how long it will take.
+I believe all the issues caused by the API update have been addressed. If you notice any issues please let me know.
 
 # tranga-yacob
 This is a frontend for Tranga https://github.com/C9Glax/tranga
