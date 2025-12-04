@@ -147,12 +147,6 @@ export default function Settings() {
         // Verify
         const verify = await useApi('/v2/Settings/LibraryRefresh', 'GET');
         if (verify !== parseInt(newValue)) success = false;
-      } else if (name.startsWith('requestLimits.')) {
-        const [, key] = name.split('.');
-        await useApi(`/v2/Settings/RequestLimits/${key}`, 'PATCH', newValue);
-        // Verify
-        const verify = await useApi('/v2/Settings/RequestLimits', 'GET');
-        if (verify[key] !== parseInt(newValue)) success = false;
       }
     } catch (err) {
       success = false;
@@ -171,23 +165,10 @@ export default function Settings() {
     try {
       let success = true;
       let key;
-      if (field.startsWith('requestLimits.')) {
-        [, key] = field.split('.');
-        await useApi(`/v2/Settings/RequestLimits/${key}`, 'DELETE');
-      } else if (field === 'userAgent') {
+      if (field === 'userAgent') {
         await useApi('/v2/Settings/UserAgent', 'DELETE');
-      } else if (field === 'imageCompression') {
-        await useApi('/v2/Settings/ImageCompressionLevel', 'DELETE');
-      } else if (field === 'blackWhiteImages') {
-        await useApi('/v2/Settings/BWImages', 'DELETE');
-      } else if (field === 'chapterNamingScheme') {
-        await useApi('/v2/Settings/ChapterNamingScheme', 'DELETE');
       } else if (field === 'flareSolverrUrl') {
         await useApi('/v2/Settings/FlareSolverr/URL', 'DELETE');
-      } else if (field === 'downloadLanguage') {
-        await useApi('/v2/Settings/DownloadLanguage', 'DELETE');
-      } else if (field === 'libraryRefreshSetting') {
-        await useApi('/v2/Settings/LibraryRefresh', 'DELETE');
       }
 
       // Reload the field to get default
@@ -212,9 +193,6 @@ export default function Settings() {
       } else if (field === 'libraryRefreshSetting') {
         const res = await useApi('/v2/Settings/LibraryRefresh', 'GET');
         setSettings(prev => ({ ...prev, libraryRefreshSetting: res || 0 }));
-      } else if (field.startsWith('requestLimits.')) {
-        const res = await useApi('/v2/Settings/RequestLimits', 'GET');
-        setSettings(prev => ({ ...prev, requestLimits: { ...prev.requestLimits, [key]: res[key] || 0 } }));
       }
 
       showToast('Reset to default', 'success');
@@ -273,32 +251,6 @@ export default function Settings() {
           >
             <RefreshCw size={16} />
           </button>
-        </div>
-
-        {/* Request Limits */}
-        <div>
-          <label className="block text-sm font-medium mb-2">Request Limits</label>
-          <div className="space-y-2">
-            {Object.entries(settings.requestLimits).map(([key, value]) => (
-              <div key={key} className="flex items-end gap-2">
-                <input 
-                  type="number" 
-                  name={`requestLimits.${key}`} 
-                  value={value} 
-                  onChange={handleInputChange}
-                  className={`flex-1 p-2 border rounded ${getInputClass(`requestLimits.${key}`)} bg-var-surface dark:bg-gray-700`}
-                  placeholder={key}
-                />
-                <button 
-                  type="button"
-                  onClick={() => handleReset(`requestLimits.${key}`)}
-                  className="bg-red-500 text-white px-3 py-2 rounded-md hover:bg-red-600 transition-colors flex items-center"
-                >
-                  <RefreshCw size={16} />
-                </button>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* Image Compression Level */}

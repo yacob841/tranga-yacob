@@ -91,7 +91,7 @@ const MangaDetailsModal = ({ isOpen, onClose, manga, mode = 'search', libraries 
       // Fetch chapters for downloaded count
       if (mode === 'watchlist') {
         try {
-          const chaptersRes = await useApi(`/v2/Manga/${manga.key}/Chapters`, 'GET');
+          const chaptersRes = await useApi(`/v2/Chapters/Manga/${manga.key}`, 'GET');
           if (isMountedRef.current) {
             setChapters(chaptersRes || []);
           }
@@ -212,7 +212,7 @@ const MangaDetailsModal = ({ isOpen, onClose, manga, mode = 'search', libraries 
     setLoading(true);
     try {
       // First, set as download from connector (creates manga)
-      await useApi(`/v2/Manga/${manga.key}/SetAsDownloadFrom/${selectedConn}/true`, 'POST');
+      await useApi(`/v2/Manga/${manga.key}/DownloadFrom/${selectedConn}/true`, 'POST');
       console.log('SetAsDownloadFrom completed for', manga.key); // Log after SetAsDownloadFrom
       // Wait time increased to 1000ms
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -267,7 +267,7 @@ const MangaDetailsModal = ({ isOpen, onClose, manga, mode = 'search', libraries 
     const connId = displayManga.mangaConnectorIds[0].mangaConnectorName;
     try {
       setLoading(true);
-      await useApi(`/v2/Manga/${manga.key}/SetAsDownloadFrom/${connId}/false`, 'POST');
+      await useApi(`/v2/Manga/${manga.key}/DownloadFrom/${connId}/false`, 'POST');
       console.log('Removed from watchlist:', manga.key);
       alert('Removed from watchlist!');  // Temporary
       onClose(true);  // Close and refresh

@@ -55,9 +55,9 @@ export default function MangaDetails() {
     if (!selectedLib || selectedLib === manga.fileLibraryId) return;
     try {
       setLoading(true);
-      await useApi(`/v2/Manga/${id}/ChangeLibrary/${selectedLib}`, 'POST', '');
+      await useApi(`/v2/Manga/${id}/ChangeLibrary/${selectedLib}`, 'POST', {});
       // Refetch manga
-      const updatedManga = await useApi(`/v2/Manga/${id}`);
+      const updatedManga = await useApi(`/v2/Manga/${id}`, 'GET');
       setManga(updatedManga);
       setShowAssignButton(false);
       console.log('Library assigned successfully');
@@ -76,8 +76,8 @@ export default function MangaDetails() {
       setRecheckLoading(true);
       await useApi(`/v2/Manga/ForceRecheck/${id}`, 'POST');
       // Refetch chapters
-      const chaptersData = await useApi(`/v2/Manga/${id}/Chapters`);
-      setChapters(chaptersData || []);
+      const chaptersData = await useApi(`/v2/Chapters/Manga/${id}?page=1&pageSize=1000`, 'POST', {});
+      setChapters(chaptersData?.data || []);
       console.log('Manga re-check triggered successfully');
     } catch (err) {
       console.error('Manga re-check error:', err);
@@ -94,8 +94,8 @@ export default function MangaDetails() {
       setRecheckLoading(true);
       await useApi(`/v2/Manga/ForceRecheck/Chapter/${chapterId}`, 'POST');
       // Refetch chapters
-      const chaptersData = await useApi(`/v2/Manga/${id}/Chapters`);
-      setChapters(chaptersData || []);
+      const chaptersData = await useApi(`/v2/Chapters/Manga/${id}?page=1&pageSize=1000`, 'POST', {});
+      setChapters(chaptersData?.data || []);
       console.log('Chapter re-check triggered successfully');
     } catch (err) {
       console.error('Chapter re-check error:', err);
@@ -109,11 +109,11 @@ export default function MangaDetails() {
     const loadData = async () => {
       try {
         setLoading(true);
-        const mangaData = await useApi(`/v2/Manga/${id}`);
+        const mangaData = await useApi(`/v2/Manga/${id}`, 'GET');
         setManga(mangaData);
         setSelectedLib(mangaData.fileLibraryId || libraries[0]?.key || '');
-        const chaptersData = await useApi(`/v2/Manga/${id}/Chapters`);
-        setChapters(chaptersData || []);
+        const chaptersData = await useApi(`/v2/Chapters/Manga/${id}?page=1&pageSize=1000`, 'POST', {});
+        setChapters(chaptersData?.data || []);
         await fetchCover(id);
       } catch (err) {
         console.error('Load error:', err);

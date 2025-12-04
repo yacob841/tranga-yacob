@@ -57,8 +57,8 @@ const MangaCard = ({
     if (mode !== 'watchlist' || !manga?.key) return;
     try {
       const [allChaptersRes, downloadedRes] = await Promise.all([
-        useApi(`/v2/Manga/${manga.key}/Chapters`),
-        useApi(`/v2/Manga/${manga.key}/Chapters/Downloaded`)
+        useApi(`/v2/Chapters/Manga/${manga.key}?page=1&pageSize=1000`, 'POST', ''),
+        useApi(`/v2/Chapters/Manga/${manga.key}?page=1&pageSize=1000`, 'POST', JSON.stringify({ downloaded: true }))
       ]);
       setTotalChapters(allChaptersRes.length || 0);
       setDownloadedChapters(downloadedRes.length || 0);
@@ -151,7 +151,7 @@ const MangaCard = ({
   const handleRemoveClick = async () => {
     if (!primaryConnector?.mangaConnectorName) return;
     try {
-      await useApi(`/v2/Manga/${manga.key}/SetAsDownloadFrom/${primaryConnector.mangaConnectorName}/false`, 'POST');
+      await useApi(`/v2/Manga/${manga.key}/DownloadFrom/${primaryConnector.mangaConnectorName}/false`, 'POST', {});
       // Refresh or notify parent to refetch
       window.location.reload(); // Simple refresh for now
     } catch (err) {

@@ -1,0 +1,137 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import useApi from '../api/client';
+import { getCoverAsBlob } from '../api/client';
+
+const MangaDetailsModal = ({ manga, isOpen, onClose }) => {
+  const [details, setDetails] = useState(manga);
+  const [editDesc, setEditDesc] = useState(false);
+  const [newDesc, setNewDesc] = useState('');
+  const [selectedLibrary, setSelectedLibrary] = useState('');
+  const [libraries, setLibraries] = useState([]);
+  const [coverUrl, setCoverUrl] = useState(null);
+
+  useEffect(() => {
+    if (isOpen && manga?.key) {
+      // Fetch full details
+      useApi(`/v2/Manga/${manga.key}`).then(data => setDetails(data));
+      // Fetch libraries for move
+      useApi('/v2/FileLibrary').then(data => setLibraries(data));
+      // Fetch cover
+      getCoverAsBlob(manga.key, 'Medium').then(({ url }) => setCoverUrl(url));
+    }
+  }, [isOpen, manga?.key]);
+
+  const handleRemove = async () => {
+    try {
+      await useApi(`/v2/Manga/${manga.key}`, 'DELETE');
+      onClose();
+    } catch (err) {
+      console.error('Remove error:', err);
+    }
+  };
+
+  const handleMove = async () => {
+    try {
+      await useApi(`/v2/Manga/${manga.key}/MoveLibrary`, 'PATCH', { libraryId: selectedLibrary });
+      onClose();
+    } catch (err) {
+      console.error('Move error:', err);
+    }
+  };
+
+  const handleUpdateDesc = async () => {
+    try {
+      await useApi(`/v2/Manga/${manga.key}`, 'PATCH', { description: newDesc });
+      setDetails({ ...details, description: newDesc });
+      setEditDesc(false);
+    } catch (err) {
+      console.error('Update desc error:', err);
+    }
+  };
+
+  const handleConnectorToggle = async (connectorName, enabled) => {
+    try {
+      await useApi(`/v2/Manga/${manga.key}/Connector/${connectorName}/SetEnabled/${enabled}`, 'PATCH');
+      // Refresh connectors in details
+    } catch (err) {
+      console.error('Connector toggle error:', err);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const tags = details.tags || []; // Assume details has tags array from API
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-screen overflow-y-auto flex"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Left: Cover Image */}
+          <div className="w-1/3 h-full relative p-4 border-r">
+            {coverUrl && <img src={coverUrl} alt={details.name} className="w-full h-full object-cover rounded" />}
+          </div>
+          {/* Right: Details */}
+          <div className="w-2/3 p-4 overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4">{details.name}</h2>
+            <p className="mb-4">{details.description}</p>
+            {/* Tags List as Nice Badges */}
+            {tags.length > 0 && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {tags.map((tag, index) => (
+                  <span key={index} className="bg-accent/20 text-accent px-3 py-1 rounded-full text-sm font-medium">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+            {editDesc ? (
+              <div className="mb-4">
+                <textarea value={newDesc} onChange={(e) => setNewDesc(e.target.value)} className="w-full border p-2 rounded" />
+                <button onClick={handleUpdateDesc} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded">Save</button>
+              </div>
+            ) : (
+              <button onClick={() => { setEditDesc(true); setNewDesc(details.description); }} className="mb-4 px-4 py-2 bg-green-500 text-white rounded">Edit Description</button>
+            )}
+            <div className="mb-4">
+              <label>Move to Library:</label>
+              <select value={selectedLibrary} onChange={(e) => setSelectedLibrary(e.target.value)} className="w-full border p-2 rounded mt-2">
+                {libraries.map(lib => <option key={lib.key} value={lib.key}>{lib.libraryName}</option>)}
+              </select>
+              <button onClick={handleMove} className="mt-2 px-4 py-2 bg-yellow-500 text-white rounded">Move</button>
+            </div>
+            <div className="mb-4">
+              <h3>Connectors:</h3>
+              {details.mangaConnectorIds?.map(conn => (
+                <div key={conn.id} className="flex justify-between items-center">
+                  <span>{conn.name}</span>
+                  <button onClick={() => handleConnectorToggle(conn.name, !conn.enabled)} className={`px-2 py-1 rounded ${conn.enabled ? 'bg-green-500' : 'bg-red-500'} text-white`}>
+                    {conn.enabled ? 'Enabled' : 'Disabled'}
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={handleRemove} className="px-4 py-2 bg-red-500 text-white rounded">Remove</button>
+              <button onClick={onClose} className="px-4 py-2 bg-gray-500 text-white rounded">Close</button>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+export default MangaDetailsModal;

@@ -28,7 +28,7 @@ export default function Jobs() {
       const mangaList = downloadingRes || [];
       const pending = [];
       for (const m of mangaList) {
-        const chaptersRes = await useApi(`/v2/Manga/${m.key}/Chapters/NotDownloaded`);
+        const chaptersRes = await useApi(`/v2/Chapters/Manga/${m.key}?page=1&pageSize=1000`, 'POST', JSON.stringify({ downloaded: false }));
         const pendingChapters = chaptersRes || [];
         if (pendingChapters.length > 0) {
           try {
@@ -96,7 +96,7 @@ export default function Jobs() {
       await useApi(`/v2/Manga/ForceRecheck/Chapter/${chapterId}`, 'POST'); // Fixed: Full path with /Manga/
       showToast(`Chapter re-check triggered for ${chapterId}!`, 'success');
       // Refetch pending chapters for this manga
-      const chaptersRes = await useApi(`/v2/Manga/${mangaId}/Chapters/NotDownloaded`);
+      const chaptersRes = await fetch(`/v2/Chapters/Manga/${m.key}?page=1&pageSize=1000`, 'POST', JSON.stringify({ downloaded: false }));
       const updatedPending = pendingManga.map(p => 
         p.key === mangaId ? { ...p, pendingChapters: chaptersRes || [] } : p
       );

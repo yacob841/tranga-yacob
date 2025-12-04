@@ -102,12 +102,12 @@ export default function Search() {
     }
     console.log('onAdd: selectedLibrary=', selectedLibrary, 'selectedConnector=', selectedConnector); // Debug
     try {
-      await useApi(`/v2/Manga/${manga.key}/SetAsDownloadFrom/${selectedConnector}/true`, 'POST');
-      console.log('SetAsDownloadFrom completed for', manga.key); // Log after SetAsDownloadFrom
+      await useApi(`/v2/Manga/${manga.key}/DownloadFrom/${selectedConnector}/true`, 'POST', {});
+      console.log('DownloadFrom completed for', manga.key); // Log after SetAsDownloadFrom
       // Wait time increased to 1000ms
       await new Promise(resolve => setTimeout(resolve, 1000));
       // Then assign library (send empty string body for POST)
-      await useApi(`/v2/Manga/${manga.key}/ChangeLibrary/${selectedLibrary}`, 'POST', '');
+      await useApi(`/v2/Manga/${manga.key}/ChangeLibrary/${selectedLibrary}`, 'POST', {});
       console.log('ChangeLibrary completed for', manga.key); // Log after ChangeLibrary
       // Refetch manga and log library
       const updatedManga = await useApi(`/v2/Manga/${manga.key}`, 'GET');

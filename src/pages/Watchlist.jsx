@@ -49,7 +49,7 @@ export default function Watchlist() {
         const enrichedManga = await Promise.all(
           data.map(async (m) => {
             try {
-              const downloadedChapters = await useApi(`/v2/Manga/${m.key}/Chapters/Downloaded`);
+              const downloadedChapters = await useApi(`/v2/Chapters/Manga/${m.key}`, 'POST', JSON.stringify({ downloaded: true }));
               const lastDownloaded = downloadedChapters?.length > 0 
                 ? Math.max(...downloadedChapters.map(ch => ch.chapterNumber || 0))
                 : 0;
